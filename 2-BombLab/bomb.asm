@@ -34,6 +34,7 @@ Disassembly of section .plt:
 
 0000000000400b10 <puts@plt>:
   400b10:	ff 25 02 25 20 00    	jmp    *0x202502(%rip)        # 603018 <puts@GLIBC_2.2.5>
+  ; 跳到0x603018处
   400b16:	68 03 00 00 00       	push   $0x3
   400b1b:	e9 b0 ff ff ff       	jmp    400ad0 <.plt>
 

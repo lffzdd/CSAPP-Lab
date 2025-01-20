@@ -309,7 +309,7 @@ Disassembly of section .text:
   400e5b:	e8 64 07 00 00       	call   4015c4 <phase_defused>
   400e60:	bf ed 22 40 00       	mov    $0x4022ed,%edi
   400e65:	e8 a6 fc ff ff       	call   400b10 <puts@plt>
-  400e6a:	e8 2f 06 00 00       	call   40149e <read_line>
+  400e6a:	e8 2f 06 00 00       	call   40149e <read_line> ; 返回的rax是下一行的地址
   400e6f:	48 89 c7             	mov    %rax,%rdi
   400e72:	e8 cc 00 00 00       	call   400f43 <phase_3>
   400e77:	e8 48 07 00 00       	call   4015c4 <phase_defused>
@@ -357,24 +357,24 @@ Disassembly of section .text:
 0000000000400efc <phase_2>:
   400efc:	55                   	push   %rbp
   400efd:	53                   	push   %rbx
-  400efe:	48 83 ec 28          	sub    $0x28,%rsp
-  400f02:	48 89 e6             	mov    %rsp,%rsi
-  400f05:	e8 52 05 00 00       	call   40145c <read_six_numbers>
-  400f0a:	83 3c 24 01          	cmpl   $0x1,(%rsp)
-  400f0e:	74 20                	je     400f30 <phase_2+0x34>
+  400efe:	48 83 ec 28          	sub    $0x28,%rsp ; 栈顶加40
+  400f02:	48 89 e6             	mov    %rsp,%rsi ; 将rsp的值赋给rsi
+  400f05:	e8 52 05 00 0 0       	call   40145c <read_six_numbers> ; 从rdi存储的地址开始读取6个数字,返回值是成功读取的参数个数,若读取的少于6个,则爆炸,rsi存储了第1个数字的地址
+  400f0a:	83 3c 24 01          	cmpl   $0x1,(%rsp) ; l表示4个字节,如果不为1,则爆炸
+  400f0e:	74 20                	je     400f30 <phase_2+0x34> ; 如果栈顶的值为1,则跳转到400f30
   400f10:	e8 25 05 00 00       	call   40143a <explode_bomb>
   400f15:	eb 19                	jmp    400f30 <phase_2+0x34>
-  400f17:	8b 43 fc             	mov    -0x4(%rbx),%eax
-  400f1a:	01 c0                	add    %eax,%eax
-  400f1c:	39 03                	cmp    %eax,(%rbx)
+  400f17:	8b 43 fc             	mov    -0x4(%rbx),%eax ; (400f3a=>)把第1个数字的值赋给eax
+  400f1a:	01 c0                	add    %eax,%eax ; eax=eax*2
+  400f1c:	39 03                	cmp    %eax,(%rbx) ; 比较n1和n2,如果2*n1!=n2,则爆炸
   400f1e:	74 05                	je     400f25 <phase_2+0x29>
   400f20:	e8 15 05 00 00       	call   40143a <explode_bomb>
-  400f25:	48 83 c3 04          	add    $0x4,%rbx
-  400f29:	48 39 eb             	cmp    %rbp,%rbx
+  400f25:	48 83 c3 04          	add    $0x4,%rbx ; 把rbx的值加4,为第3个数字的地址
+  400f29:	48 39 eb             	cmp    %rbp,%rbx ; 把第6个和第3个数字的地址比较,如果不相等,则跳转到400f17,于是比较2n2和n3,再是2n3和n4,2n4和n5,2n5和n6,rbx存储了当前遍历的数字的地址
   400f2c:	75 e9                	jne    400f17 <phase_2+0x1b>
   400f2e:	eb 0c                	jmp    400f3c <phase_2+0x40>
-  400f30:	48 8d 5c 24 04       	lea    0x4(%rsp),%rbx
-  400f35:	48 8d 6c 24 18       	lea    0x18(%rsp),%rbp
+  400f30:	48 8d 5c 24 04       	lea    0x4(%rsp),%rbx ; 把第2个数字的地址赋给rbx
+  400f35:	48 8d 6c 24 18       	lea    0x18(%rsp),%rbp ; 把第6个数字的地址赋给rbp
   400f3a:	eb db                	jmp    400f17 <phase_2+0x1b>
   400f3c:	48 83 c4 28          	add    $0x28,%rsp
   400f40:	5b                   	pop    %rbx
@@ -384,51 +384,51 @@ Disassembly of section .text:
 0000000000400f43 <phase_3>:
   400f43:	48 83 ec 18          	sub    $0x18,%rsp
   400f47:	48 8d 4c 24 0c       	lea    0xc(%rsp),%rcx
-  400f4c:	48 8d 54 24 08       	lea    0x8(%rsp),%rdx
-  400f51:	be cf 25 40 00       	mov    $0x4025cf,%esi
-  400f56:	b8 00 00 00 00       	mov    $0x0,%eax
-  400f5b:	e8 90 fc ff ff       	call   400bf0 <__isoc99_sscanf@plt>
-  400f60:	83 f8 01             	cmp    $0x1,%eax
+  400f4c:	48 8d 54 24 08       	lea    0x8(%rsp),%rdx ; (rsp+8)给rdx,(rsp+12)给rcx
+  400f51:	be cf 25 40 00       	mov    $0x4025cf,%esi ; 给rsi赋值0x4025cf
+  400f56:	b8 00 00 00 00       	mov    $0x0,%eax ; 给eax赋值0
+  400f5b:	e8 90 fc ff ff       	call   400bf0 <__isoc99_sscanf@plt> ; 调用sscanf,把值写会rdx和rcx指定的地址中,也就是(rsp+8)和(rsp+12)
+  400f60:	83 f8 01             	cmp    $0x1,%eax ; 如果读取到的数小于2个,则爆炸
   400f63:	7f 05                	jg     400f6a <phase_3+0x27>
   400f65:	e8 d0 04 00 00       	call   40143a <explode_bomb>
-  400f6a:	83 7c 24 08 07       	cmpl   $0x7,0x8(%rsp)
+  400f6a:	83 7c 24 08 07       	cmpl   $0x7,0x8(%rsp) ; 如果(rsp+8)的值大于7或小于0,则爆炸
   400f6f:	77 3c                	ja     400fad <phase_3+0x6a>
-  400f71:	8b 44 24 08          	mov    0x8(%rsp),%eax
-  400f75:	ff 24 c5 70 24 40 00 	jmp    *0x402470(,%rax,8)
-  400f7c:	b8 cf 00 00 00       	mov    $0xcf,%eax
+  400f71:	8b 44 24 08          	mov    0x8(%rsp),%eax ; 把(rsp+8)的值赋给eax
+  400f75:	ff 24 c5 70 24 40 00 	jmp    *0x402470(,%rax,8) ; 跳转到0x402470+(rsp+8)*8 (gdb) x/8a 0x402470
+  400f7c:	b8 cf 00 00 00       	mov    $0xcf,%eax ; ax=0,第二个数要等于207
   400f81:	eb 3b                	jmp    400fbe <phase_3+0x7b>
-  400f83:	b8 c3 02 00 00       	mov    $0x2c3,%eax
+  400f83:	b8 c3 02 00 00       	mov    $0x2c3,%eax; ax=2,第二个数要等于311
   400f88:	eb 34                	jmp    400fbe <phase_3+0x7b>
-  400f8a:	b8 00 01 00 00       	mov    $0x100,%eax
+  400f8a:	b8 00 01 00 00       	mov    $0x100,%eax; ax=4,第二个数要等于256
   400f8f:	eb 2d                	jmp    400fbe <phase_3+0x7b>
-  400f91:	b8 85 01 00 00       	mov    $0x185,%eax
+  400f91:	b8 85 01 00 00       	mov    $0x185,%eax; ax=5,第二个数要等于229
   400f96:	eb 26                	jmp    400fbe <phase_3+0x7b>
-  400f98:	b8 ce 00 00 00       	mov    $0xce,%eax
+  400f98:	b8 ce 00 00 00       	mov    $0xce,%eax ; ax=6,第二个数要等于206
   400f9d:	eb 1f                	jmp    400fbe <phase_3+0x7b>
-  400f9f:	b8 aa 02 00 00       	mov    $0x2aa,%eax
+  400f9f:	b8 aa 02 00 00       	mov    $0x2aa,%eax; ax=7,第二个数要等于274
   400fa4:	eb 18                	jmp    400fbe <phase_3+0x7b>
-  400fa6:	b8 47 01 00 00       	mov    $0x147,%eax
+  400fa6:	b8 47 01 00 00       	mov    $0x147,%eax; ax=8,第二个数要等于229
   400fab:	eb 11                	jmp    400fbe <phase_3+0x7b>
   400fad:	e8 88 04 00 00       	call   40143a <explode_bomb>
   400fb2:	b8 00 00 00 00       	mov    $0x0,%eax
   400fb7:	eb 05                	jmp    400fbe <phase_3+0x7b>
-  400fb9:	b8 37 01 00 00       	mov    $0x137,%eax
-  400fbe:	3b 44 24 0c          	cmp    0xc(%rsp),%eax
+  400fb9:	b8 37 01 00 00       	mov    $0x137,%eax ; ax=1,第二个数要等于215
+  400fbe:	3b 44 24 0c          	cmp    0xc(%rsp),%eax ; 比较(rsp+12)和ax,如果不相等则爆炸
   400fc2:	74 05                	je     400fc9 <phase_3+0x86>
   400fc4:	e8 71 04 00 00       	call   40143a <explode_bomb>
   400fc9:	48 83 c4 18          	add    $0x18,%rsp
   400fcd:	c3                   	ret
 
-0000000000400fce <func4>:
+0000000000400fce <func4>: ;(edi,esi,edx)
   400fce:	48 83 ec 08          	sub    $0x8,%rsp
   400fd2:	89 d0                	mov    %edx,%eax
-  400fd4:	29 f0                	sub    %esi,%eax
+  400fd4:	29 f0                	sub    %esi,%eax ; eax=edx-esi
   400fd6:	89 c1                	mov    %eax,%ecx
-  400fd8:	c1 e9 1f             	shr    $0x1f,%ecx
-  400fdb:	01 c8                	add    %ecx,%eax
-  400fdd:	d1 f8                	sar    $1,%eax
-  400fdf:	8d 0c 30             	lea    (%rax,%rsi,1),%ecx
-  400fe2:	39 f9                	cmp    %edi,%ecx
+  400fd8:	c1 e9 1f             	shr    $0x1f,%ecx ; ecx=eax>>31,保留符号
+  400fdb:	01 c8                	add    %ecx,%eax ; eax+=ecx ;若esi<=edx,eax+=0,否则eax+=1
+  400fdd:	d1 f8                	sar    $1,%eax ; eax=eax>>1
+  400fdf:	8d 0c 30             	lea    (%rax,%rsi,1),%ecx ; ecx=esi+eax
+  400fe2:	39 f9                	cmp    %edi,%ecx ; 比较edi和ecx,如果edi<=ecx,则跳转到400ff2
   400fe4:	7e 0c                	jle    400ff2 <func4+0x24>
   400fe6:	8d 51 ff             	lea    -0x1(%rcx),%edx
   400fe9:	e8 e0 ff ff ff       	call   400fce <func4>
@@ -451,15 +451,15 @@ Disassembly of section .text:
   40101f:	b8 00 00 00 00       	mov    $0x0,%eax
   401024:	e8 c7 fb ff ff       	call   400bf0 <__isoc99_sscanf@plt>
   401029:	83 f8 02             	cmp    $0x2,%eax
-  40102c:	75 07                	jne    401035 <phase_4+0x29>
-  40102e:	83 7c 24 08 0e       	cmpl   $0xe,0x8(%rsp)
+  40102c:	75 07                	jne    401035 <phase_4+0x29> ; 读取两个数到(rsp+8)和(rsp+12),如果小于2个则爆炸
+  40102e:	83 7c 24 08 0e       	cmpl   $0xe,0x8(%rsp) ; 如果(rsp+8)的值大于14,则爆炸
   401033:	76 05                	jbe    40103a <phase_4+0x2e>
   401035:	e8 00 04 00 00       	call   40143a <explode_bomb>
   40103a:	ba 0e 00 00 00       	mov    $0xe,%edx
   40103f:	be 00 00 00 00       	mov    $0x0,%esi
   401044:	8b 7c 24 08          	mov    0x8(%rsp),%edi
-  401048:	e8 81 ff ff ff       	call   400fce <func4>
-  40104d:	85 c0                	test   %eax,%eax
+  401048:	e8 81 ff ff ff       	call   400fce <func4> ; func4((rsp+8),0,14)
+  40104d:	85 c0                	test   %eax,%eax ; 如果返回值不为0,则爆炸
   40104f:	75 07                	jne    401058 <phase_4+0x4c>
   401051:	83 7c 24 0c 00       	cmpl   $0x0,0xc(%rsp)
   401056:	74 05                	je     40105d <phase_4+0x51>
@@ -804,19 +804,19 @@ Disassembly of section .text:
 
 000000000040145c <read_six_numbers>:
   40145c:	48 83 ec 18          	sub    $0x18,%rsp
-  401460:	48 89 f2             	mov    %rsi,%rdx
-  401463:	48 8d 4e 04          	lea    0x4(%rsi),%rcx
-  401467:	48 8d 46 14          	lea    0x14(%rsi),%rax
-  40146b:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+  401460:	48 89 f2             	mov    %rsi,%rdx ; rsi的值赋给rdx
+  401463:	48 8d 4e 04          	lea    0x4(%rsi),%rcx ; rsi+4的值赋给rcx
+  401467:	48 8d 46 14          	lea    0x14(%rsi),%rax ; rsi+20的值赋给rax
+  40146b:	48 89 44 24 08       	mov    %rax,0x8(%rsp) ; rsi+20的值赋给rsp+8
   401470:	48 8d 46 10          	lea    0x10(%rsi),%rax
-  401474:	48 89 04 24          	mov    %rax,(%rsp)
-  401478:	4c 8d 4e 0c          	lea    0xc(%rsi),%r9
-  40147c:	4c 8d 46 08          	lea    0x8(%rsi),%r8
-  401480:	be c3 25 40 00       	mov    $0x4025c3,%esi
+  401474:	48 89 04 24          	mov    %rax,(%rsp) ; rsi+16的值赋给rsp
+  401478:	4c 8d 4e 0c          	lea    0xc(%rsi),%r9 ; rsi+12的值赋给r9
+  40147c:	4c 8d 46 08          	lea    0x8(%rsi),%r8 ; rsi+8的值赋给r8
+  401480:	be c3 25 40 00       	mov    $0x4025c3,%esi ; 将0x4025c3赋给esi=>rsi
   401485:	b8 00 00 00 00       	mov    $0x0,%eax
-  40148a:	e8 61 f7 ff ff       	call   400bf0 <__isoc99_sscanf@plt>
-  40148f:	83 f8 05             	cmp    $0x5,%eax
-  401492:	7f 05                	jg     401499 <read_six_numbers+0x3d>
+  40148a:	e8 61 f7 ff ff       	call   400bf0 <__isoc99_sscanf@plt> ; sscanf(char*str,char*format,arg1,arg2,arg3,arg4,arg5,arg6),即sscanf(rdi,rsi,rdx,rcx,r8,r9),rdx-r9存储第1到第4个数字的地址,剩下的两个地址存储在栈中;因为写入的时候不是把值给rdx而是写入(%rdx)等地址,所以写入到了rsi存储的地址
+  40148f:	83 f8 05             	cmp    $0x5,%eax ; sscanf是scanf的c99版本,返回值是成功读取的参数个数
+  401492:	7f 05                	jg     401499 <read_six_numbers+0x3d> ; 如果成功读取的参数个数至少有6个,则不爆炸
   401494:	e8 a1 ff ff ff       	call   40143a <explode_bomb>
   401499:	48 83 c4 18          	add    $0x18,%rsp
   40149d:	c3                   	ret

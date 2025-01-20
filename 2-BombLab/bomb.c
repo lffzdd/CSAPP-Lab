@@ -20,10 +20,10 @@
  * by law.
  ***************************************************************************/
 
+#include "phases.h"
+#include "support.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "support.h"
-#include "phases.h"
 
 /*
  * Note to self: Remember to erase this file so my victims will have no
@@ -33,8 +33,7 @@
 
 FILE *infile;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   char *input;
 
   /* Note to self: remember to port this bomb to Windows and put a
@@ -42,8 +41,7 @@ int main(int argc, char *argv[])
 
   /* When run with no arguments, the bomb reads its input lines
    * from standard input. */
-  if (argc == 1)
-  {
+  if (argc == 1) {
     infile = stdin;
   }
 
@@ -51,18 +49,15 @@ int main(int argc, char *argv[])
    * until EOF, and then switches to standard input. Thus, as you
    * defuse each phase, you can add its defusing string to <file> and
    * avoid having to retype it. */
-  else if (argc == 2)
-  {
-    if (!(infile = fopen(argv[1], "r")))
-    {
+  else if (argc == 2) {
+    if (!(infile = fopen(argv[1], "r"))) {
       printf("%s: Error: Couldn't open %s\n", argv[0], argv[1]);
       exit(8);
     }
   }
 
   /* You can't call the bomb with more than 1 command line argument. */
-  else
-  {
+  else {
     printf("Usage: %s [<input_file>]\n", argv[0]);
     exit(8);
   }

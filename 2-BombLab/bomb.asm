@@ -394,7 +394,7 @@ Disassembly of section .text:
   400f6a:	83 7c 24 08 07       	cmpl   $0x7,0x8(%rsp) ; 如果(rsp+8)的值大于7或小于0,则爆炸
   400f6f:	77 3c                	ja     400fad <phase_3+0x6a>
   400f71:	8b 44 24 08          	mov    0x8(%rsp),%eax ; 把(rsp+8)的值赋给eax
-  400f75:	ff 24 c5 70 24 40 00 	jmp    *0x402470(,%rax,8) ; 跳转到0x402470+(rsp+8)*8 (gdb) x/8a 0x402470
+  400f75:	ff 24 c5 70 24 40 00 	jmp    *0x402470(,%rax,8) ; 跳转到0x402470+(rsp+8)*8 (gdb) x/8a 0x402470 ; switch语句
   400f7c:	b8 cf 00 00 00       	mov    $0xcf,%eax ; ax=0,第二个数要等于207
   400f81:	eb 3b                	jmp    400fbe <phase_3+0x7b>
   400f83:	b8 c3 02 00 00       	mov    $0x2c3,%eax; ax=2,第二个数要等于311
@@ -421,25 +421,31 @@ Disassembly of section .text:
 
 0000000000400fce <func4>: ;(edi,esi,edx)
   400fce:	48 83 ec 08          	sub    $0x8,%rsp
-  400fd2:	89 d0                	mov    %edx,%eax
-  400fd4:	29 f0                	sub    %esi,%eax ; eax=edx-esi
+  ; 计算 (上界+下界)/2:
+  400fd2:	89 d0                	mov    %edx,%eax  ; eax = 上界
+  400fd4:	29 f0                	sub    %esi,%eax  ; eax = 上界-下界
   400fd6:	89 c1                	mov    %eax,%ecx
-  400fd8:	c1 e9 1f             	shr    $0x1f,%ecx ; ecx=eax>>31,保留符号
-  400fdb:	01 c8                	add    %ecx,%eax ; eax+=ecx ;若esi<=edx,eax+=0,否则eax+=1
-  400fdd:	d1 f8                	sar    $1,%eax ; eax=eax>>1
-  400fdf:	8d 0c 30             	lea    (%rax,%rsi,1),%ecx ; ecx=esi+eax
-  400fe2:	39 f9                	cmp    %edi,%ecx ; 比较edi和ecx,如果edi<=ecx,则跳转到400ff2
-  400fe4:	7e 0c                	jle    400ff2 <func4+0x24>
-  400fe6:	8d 51 ff             	lea    -0x1(%rcx),%edx
-  400fe9:	e8 e0 ff ff ff       	call   400fce <func4>
-  400fee:	01 c0                	add    %eax,%eax
+  ; 下面三行是处理负数除法的向上取整:
+  400fd8:	c1 e9 1f             	shr    $0x1f,%ecx ; 获取符号位
+  400fdb:	01 c8                	add    %ecx,%eax  ; 如果是负数就+1
+  400fdd:	d1 f8                	sar    $1,%eax    ; 右移1位,即eax=eax/2
+    ;假设eax=-14,若不进行eax+=1,则eax=-7,eax+=1后eax=-6.5=>-7;若eax=-15,若不进行eax+=1,则eax=-7.5=>-8,eax+=1后eax=-7,所以上面的mov,shr,add是用来对负数实现向上取整的
+  400fdf:	8d 0c 30             	lea    (%rax,%rsi,1),%ecx ; 中间值 = (上界-下界)/2+下界
+  ; 然后比较中间值和目标值:
+  400fe2:	39 f9                	cmp    %edi,%ecx 
+  400fe4:	7e 0c                	jle    400ff2 <func4+0x24> ; 如果中间值 <= 目标值,跳转
+  ; 如果中间值 > 目标值:
+  400fe6:	8d 51 ff             	lea    -0x1(%rcx),%edx ; 新上界 = 中间值-1
+  400fe9:	e8 e0 ff ff ff       	call   400fce <func4> ; 递归调用,在左半部分查找
+  400fee:	01 c0                	add    %eax,%eax      ; 返回值 = 递归返回值 * 2
   400ff0:	eb 15                	jmp    401007 <func4+0x39>
-  400ff2:	b8 00 00 00 00       	mov    $0x0,%eax
-  400ff7:	39 f9                	cmp    %edi,%ecx
-  400ff9:	7d 0c                	jge    401007 <func4+0x39>
-  400ffb:	8d 71 01             	lea    0x1(%rcx),%esi
-  400ffe:	e8 cb ff ff ff       	call   400fce <func4>
-  401003:	8d 44 00 01          	lea    0x1(%rax,%rax,1),%eax
+  ; 如果中间值 <= 目标值:
+  400ff2:	b8 00 00 00 00       	mov    $0x0,%eax ; eax = 0
+  400ff7:	39 f9                	cmp    %edi,%ecx ; ; 再次比较中间值和目标值
+  400ff9:	7d 0c                	jge    401007 <func4+0x39> ; 如果中间值 >= 目标值，直接返回0 ; 记住,这个函数最后一次递归时中间值一定等于目标值,此时返回0;然后返回给上次递归时的第400ffe而不是400fe9
+  400ffb:	8d 71 01             	lea    0x1(%rcx),%esi ; 否则，新下界 = 中间值+1
+  400ffe:	e8 cb ff ff ff       	call   400fce <func4> ; ; 递归调用，在右半部分查找
+  401003:	8d 44 00 01          	lea    0x1(%rax,%rax,1),%eax ; 返回值 = 递归返回值 * 2 + 1
   401007:	48 83 c4 08          	add    $0x8,%rsp
   40100b:	c3                   	ret
 
@@ -458,10 +464,10 @@ Disassembly of section .text:
   40103a:	ba 0e 00 00 00       	mov    $0xe,%edx
   40103f:	be 00 00 00 00       	mov    $0x0,%esi
   401044:	8b 7c 24 08          	mov    0x8(%rsp),%edi
-  401048:	e8 81 ff ff ff       	call   400fce <func4> ; func4((rsp+8),0,14)
+  401048:	e8 81 ff ff ff       	call   400fce <func4> ; func4((rsp+8),0,14);这是个二分查找,最后一次递归时返回0,下面eax=0表示这个递归函数只能调用一次,则(rsp+8)的值是中间值
   40104d:	85 c0                	test   %eax,%eax ; 如果返回值不为0,则爆炸
   40104f:	75 07                	jne    401058 <phase_4+0x4c>
-  401051:	83 7c 24 0c 00       	cmpl   $0x0,0xc(%rsp)
+  401051:	83 7c 24 0c 00       	cmpl   $0x0,0xc(%rsp) ; 如果(rsp+12)的值不为0,则爆炸,则(rsp+12)的值是0
   401056:	74 05                	je     40105d <phase_4+0x51>
   401058:	e8 dd 03 00 00       	call   40143a <explode_bomb>
   40105d:	48 83 c4 18          	add    $0x18,%rsp
@@ -470,29 +476,29 @@ Disassembly of section .text:
 0000000000401062 <phase_5>:
   401062:	53                   	push   %rbx
   401063:	48 83 ec 20          	sub    $0x20,%rsp
-  401067:	48 89 fb             	mov    %rdi,%rbx
-  40106a:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+  401067:	48 89 fb             	mov    %rdi,%rbx ; 传入的rdi是当前读取的字符串的地址
+  40106a:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax ; fs是段寄存器,这里是金丝雀值,函数开始时，将金丝雀值存储到栈上,函数结束前，比较栈上的金丝雀值和原始值,如果值不同，说明栈被破坏，程序会立即终止
   401071:	00 00 
-  401073:	48 89 44 24 18       	mov    %rax,0x18(%rsp)
+  401073:	48 89 44 24 18       	mov    %rax,0x18(%rsp) ; 把金丝雀值存储到栈底,不是0x19是保证内存对齐,64位值应该存储在8字节对齐的内存地址上
   401078:	31 c0                	xor    %eax,%eax
   40107a:	e8 9c 02 00 00       	call   40131b <string_length>
-  40107f:	83 f8 06             	cmp    $0x6,%eax
+  40107f:	83 f8 06             	cmp    $0x6,%eax ; 如果字符串长度不是6,则爆炸
   401082:	74 4e                	je     4010d2 <phase_5+0x70>
   401084:	e8 b1 03 00 00       	call   40143a <explode_bomb>
-  401089:	eb 47                	jmp    4010d2 <phase_5+0x70>
-  40108b:	0f b6 0c 03          	movzbl (%rbx,%rax,1),%ecx
-  40108f:	88 0c 24             	mov    %cl,(%rsp)
-  401092:	48 8b 14 24          	mov    (%rsp),%rdx
-  401096:	83 e2 0f             	and    $0xf,%edx
-  401099:	0f b6 92 b0 24 40 00 	movzbl 0x4024b0(%rdx),%edx
-  4010a0:	88 54 04 10          	mov    %dl,0x10(%rsp,%rax,1)
-  4010a4:	48 83 c0 01          	add    $0x1,%rax
+  401089:	eb 47                	jmp    4010d2 <phase_5+0x70> ; 字符串长度为6,开始循环,初始化rax=0
+  40108b:	0f b6 0c 03          	movzbl (%rbx,%rax,1),%ecx ; 把字符串的第rax个字符赋值给ecx
+  40108f:	88 0c 24             	mov    %cl,(%rsp) ; 把ecx的低8位字节赋值给(rsp),也就是栈顶,低8位就是该字符
+  401092:	48 8b 14 24          	mov    (%rsp),%rdx ; rdx=s[i]
+  401096:	83 e2 0f             	and    $0xf,%edx ; 和00001111相与,也就是保留低4位
+  401099:	0f b6 92 b0 24 40 00 	movzbl 0x4024b0(%rdx),%edx ; 将地址为(0x4024b0+低4位)的字符赋给edx
+  4010a0:	88 54 04 10          	mov    %dl,0x10(%rsp,%rax,1) ; 栈中隔了16个字节后存放该字符,注意遍历完后有6个字符,而栈顶的字符只是暂时存放
+  4010a4:	48 83 c0 01          	add    $0x1,%rax ; 进入下一次遍历
   4010a8:	48 83 f8 06          	cmp    $0x6,%rax
-  4010ac:	75 dd                	jne    40108b <phase_5+0x29>
-  4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp)
-  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi
-  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi
-  4010bd:	e8 76 02 00 00       	call   401338 <strings_not_equal>
+  4010ac:	75 dd                	jne    40108b <phase_5+0x29> ; 第6次遍历结束
+  4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp) ; 把0x16(%rsp)的值设置为0,10-15存放了字符串,16设为0表示字符串结束
+  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi ; 把0x40245e赋给esi
+  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi ; 把rdi指向新的字符串
+  4010bd:	e8 76 02 00 00       	call   401338 <strings_not_equal> ; 比较新的字符串和0x40245e处的字符串,如果不相等则爆炸
   4010c2:	85 c0                	test   %eax,%eax
   4010c4:	74 13                	je     4010d9 <phase_5+0x77>
   4010c6:	e8 6f 03 00 00       	call   40143a <explode_bomb>
@@ -500,8 +506,8 @@ Disassembly of section .text:
   4010d0:	eb 07                	jmp    4010d9 <phase_5+0x77>
   4010d2:	b8 00 00 00 00       	mov    $0x0,%eax
   4010d7:	eb b2                	jmp    40108b <phase_5+0x29>
-  4010d9:	48 8b 44 24 18       	mov    0x18(%rsp),%rax
-  4010de:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax
+  4010d9:	48 8b 44 24 18       	mov    0x18(%rsp),%rax ; 把金丝雀值赋给rax
+  4010de:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax ; 比较金丝雀值和原始值
   4010e5:	00 00 
   4010e7:	74 05                	je     4010ee <phase_5+0x8c>
   4010e9:	e8 42 fa ff ff       	call   400b30 <__stack_chk_fail@plt>

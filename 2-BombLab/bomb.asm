@@ -515,87 +515,91 @@ Disassembly of section .text:
   4010f2:	5b                   	pop    %rbx
   4010f3:	c3                   	ret
 
-00000000004010f4 <phase_6>:
+00000000004010f4 <phase_6>: ; gdb x/24wx 0x6032d0
   4010f4:	41 56                	push   %r14
   4010f6:	41 55                	push   %r13
   4010f8:	41 54                	push   %r12
   4010fa:	55                   	push   %rbp
   4010fb:	53                   	push   %rbx
   4010fc:	48 83 ec 50          	sub    $0x50,%rsp
-  401100:	49 89 e5             	mov    %rsp,%r13
+  401100:	49 89 e5             	mov    %rsp,%r13 ; int *ap[6] ;
   401103:	48 89 e6             	mov    %rsp,%rsi
-  401106:	e8 51 03 00 00       	call   40145c <read_six_numbers>
+  401106:	e8 51 03 00 00       	call   40145c <read_six_numbers> ; read_six_numbers(rdi,ap)
   40110b:	49 89 e6             	mov    %rsp,%r14
-  40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d
-  401114:	4c 89 ed             	mov    %r13,%rbp
-  401117:	41 8b 45 00          	mov    0x0(%r13),%eax
+  40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d ; int i = 0
+  401114:	4c 89 ed             	mov    %r13,%rbp ; 
+  401117:	41 8b 45 00          	mov    0x0(%r13),%eax ; eax = *ap
   40111b:	83 e8 01             	sub    $0x1,%eax
-  40111e:	83 f8 05             	cmp    $0x5,%eax
-  401121:	76 05                	jbe    401128 <phase_6+0x34>
+  40111e:	83 f8 05             	cmp    $0x5,%eax ; -1操作和jbe无符号比较使得*ap为0也无法通过,即0<*ap<=6
+  401121:	76 05                	jbe    401128 <phase_6+0x34> ;if 0<*ap<=6
   401123:	e8 12 03 00 00       	call   40143a <explode_bomb>
   401128:	41 83 c4 01          	add    $0x1,%r12d
-  40112c:	41 83 fc 06          	cmp    $0x6,%r12d
+  40112c:	41 83 fc 06          	cmp    $0x6,%r12d ; (i<6;i++)
   401130:	74 21                	je     401153 <phase_6+0x5f>
-  401132:	44 89 e3             	mov    %r12d,%ebx
-  401135:	48 63 c3             	movslq %ebx,%rax
-  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax
-  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)
+  401132:	44 89 e3             	mov    %r12d,%ebx ; for (int j= i;j<6;j++) {...}
+  401135:	48 63 c3             	movslq %ebx,%rax            ;========> 比较*ap和A[j]
+  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax ; 把A[j]的值赋给eax
+  40113b:	39 45 00             	cmp    %eax,0x0(%rbp) ; 比较A[j]和*ap,如果相等则爆炸;这里要注意,i不会每次在A++时初始化为0,也就是说*A相当于A[i]
   40113e:	75 05                	jne    401145 <phase_6+0x51>
   401140:	e8 f5 02 00 00       	call   40143a <explode_bomb>
-  401145:	83 c3 01             	add    $0x1,%ebx
-  401148:	83 fb 05             	cmp    $0x5,%ebx
-  40114b:	7e e8                	jle    401135 <phase_6+0x41>
-  40114d:	49 83 c5 04          	add    $0x4,%r13
-  401151:	eb c1                	jmp    401114 <phase_6+0x20>
-  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
-  401158:	4c 89 f0             	mov    %r14,%rax
+  401145:	83 c3 01             	add    $0x1,%ebx ; j++
+  401148:	83 fb 05             	cmp    $0x5,%ebx ; 如果j<=5,则继续循环
+  40114b:	7e e8                	jle    401135 <phase_6+0x41>; <========
+  40114d:	49 83 c5 04          	add    $0x4,%r13 ; ap++
+  401151:	eb c1                	jmp    401114 <phase_6+0x20> ; 上面这一段循环看起来很奇怪,没有用A[i]而是用*ap,但是源码可能用的是A[i],这里是编译器优化的结果,这样不需要每次都计算数组偏移量,且指针操作通常比数组索引更高效,并且减少了寄存器的使用.                          数组中元素为1~6,且各不相同
+                                ; ==============================================> 数组元素=7-数组元素
+  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi ; rsi指向栈中数组后面的地址
+  401158:	4c 89 f0             	mov    %r14,%rax ; int *ap=A
   40115b:	b9 07 00 00 00       	mov    $0x7,%ecx
   401160:	89 ca                	mov    %ecx,%edx
-  401162:	2b 10                	sub    (%rax),%edx
+  401162:	2b 10                	sub    (%rax),%edx ; 7 - *ap
   401164:	89 10                	mov    %edx,(%rax)
   401166:	48 83 c0 04          	add    $0x4,%rax
   40116a:	48 39 f0             	cmp    %rsi,%rax
-  40116d:	75 f1                	jne    401160 <phase_6+0x6c>
+  40116d:	75 f1                	jne    401160 <phase_6+0x6c> 
+                                ; <==============================================
   40116f:	be 00 00 00 00       	mov    $0x0,%esi
   401174:	eb 21                	jmp    401197 <phase_6+0xa3>
-  401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx
-  40117a:	83 c0 01             	add    $0x1,%eax
-  40117d:	39 c8                	cmp    %ecx,%eax
-  40117f:	75 f5                	jne    401176 <phase_6+0x82>
+                                ; ==============================================> 栈中插入指针数组,指针指向由数组元素决定的内存地址
+  401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx ; rdx=rdx->next;直到数组元素=i
+  40117a:	83 c0 01             	add    $0x1,%eax ; i初始为1,每次循环+1
+  40117d:	39 c8                	cmp    %ecx,%eax ; 从2开始比较,直到数组元素=i
+  40117f:	75 f5                	jne    401176 <phase_6+0x82> ; <====
   401181:	eb 05                	jmp    401188 <phase_6+0x94>
-  401183:	ba d0 32 60 00       	mov    $0x6032d0,%edx
+  401183:	ba d0 32 60 00       	mov    $0x6032d0,%edx        ; ========> 在栈中数组后面的32个字节后存放的内存处存放指针 ,如果数组元素<=1,则指向6032d0,如果数组元素>1,则指向6032d0+8*(数组元素-1)
   401188:	48 89 54 74 20       	mov    %rdx,0x20(%rsp,%rsi,2)
-  40118d:	48 83 c6 04          	add    $0x4,%rsi
+  40118d:	48 83 c6 04          	add    $0x4,%rsi ; rsi
   401191:	48 83 fe 18          	cmp    $0x18,%rsi
   401195:	74 14                	je     4011ab <phase_6+0xb7>
   401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx
-  40119a:	83 f9 01             	cmp    $0x1,%ecx
-  40119d:	7e e4                	jle    401183 <phase_6+0x8f>
-  40119f:	b8 01 00 00 00       	mov    $0x1,%eax
-  4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx
+  40119a:	83 f9 01             	cmp    $0x1,%ecx ; 比较数组元素是否大于1
+  40119d:	7e e4                	jle    401183 <phase_6+0x8f> ; <========
+  40119f:	b8 01 00 00 00       	mov    $0x1,%eax ; 如果数组元素>1,初始化i=1,且每次都重新赋值为1
+  4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx ; 初始化edx=6032d0
   4011a9:	eb cb                	jmp    401176 <phase_6+0x82>
-  4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx
-  4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax
-  4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi
+                                ; <==============================================
+  4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx ; rbx为指针数组的第一个指针
+  4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax ; rax指向指针数组的第二个元素
+  4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi ; rsi指向指针数组的最后一个元素后面,也是栈底
   4011ba:	48 89 d9             	mov    %rbx,%rcx
-  4011bd:	48 8b 10             	mov    (%rax),%rdx
-  4011c0:	48 89 51 08          	mov    %rdx,0x8(%rcx)
+  4011bd:	48 8b 10             	mov    (%rax),%rdx ; ====> 6个指针每个指向一个struct,struct的第二个元素是next指针,这个循环把6个struct串起来,即第一个struct的next指针指向第二个struct,第二个struct的next指针指向第三个struct,以此类推
+  4011c0:	48 89 51 08          	mov    %rdx,0x8(%rcx) ; 
   4011c4:	48 83 c0 08          	add    $0x8,%rax
   4011c8:	48 39 f0             	cmp    %rsi,%rax
   4011cb:	74 05                	je     4011d2 <phase_6+0xde>
   4011cd:	48 89 d1             	mov    %rdx,%rcx
-  4011d0:	eb eb                	jmp    4011bd <phase_6+0xc9>
-  4011d2:	48 c7 42 08 00 00 00 	movq   $0x0,0x8(%rdx)
+  4011d0:	eb eb                	jmp    4011bd <phase_6+0xc9> ; <====
+  4011d2:	48 c7 42 08 00 00 00 	movq   $0x0,0x8(%rdx) ; 第6个struct的next指针指向NULL
   4011d9:	00 
-  4011da:	bd 05 00 00 00       	mov    $0x5,%ebp
-  4011df:	48 8b 43 08          	mov    0x8(%rbx),%rax
-  4011e3:	8b 00                	mov    (%rax),%eax
-  4011e5:	39 03                	cmp    %eax,(%rbx)
+  4011da:	bd 05 00 00 00       	mov    $0x5,%ebp    ; ====> 比较第一个和第二个struct的值,第二个和第三个struct的值,以此类推,val1>=val2>=val3>=val4>=val5>=val6
+  4011df:	48 8b 43 08          	mov    0x8(%rbx),%rax ; 把第1个struct的next指针赋给rax,即指向第2个struct
+  4011e3:	8b 00                	mov    (%rax),%eax ; 把第2个struct的值赋给eax
+  4011e5:	39 03                	cmp    %eax,(%rbx) ; 比较第1个struct的值和第2个struct的值,如果第1个struct的值小于第2个struct的值,则爆炸
   4011e7:	7d 05                	jge    4011ee <phase_6+0xfa>
   4011e9:	e8 4c 02 00 00       	call   40143a <explode_bomb>
-  4011ee:	48 8b 5b 08          	mov    0x8(%rbx),%rbx
+  4011ee:	48 8b 5b 08          	mov    0x8(%rbx),%rbx ; rbx由指向第一个struct变为指向第二个struct
   4011f2:	83 ed 01             	sub    $0x1,%ebp
-  4011f5:	75 e8                	jne    4011df <phase_6+0xeb>
+  4011f5:	75 e8                	jne    4011df <phase_6+0xeb> ; <====
   4011f7:	48 83 c4 50          	add    $0x50,%rsp
   4011fb:	5b                   	pop    %rbx
   4011fc:	5d                   	pop    %rbp

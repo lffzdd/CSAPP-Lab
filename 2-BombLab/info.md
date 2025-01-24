@@ -20,3 +20,20 @@ PLT 会处理动态链接，确保调用到实际的 libc 中的 `sscanf` 函数
 减小可执行文件的大小
 允许库函数的实现被多个程序共享
 使得库可以被独立更新
+
+---
+
+Border relations with Canada have never been better.
+1 2 4 8 16 32
+0 207
+7 0
+I/.567
+
+
+
+phase_1:0x402400 Border relations with Canada have never been better.
+phase_2:1 2 4 8 16 32
+phase_3:0 206/1 xxx/...
+phase_4:7 0
+phase_5:flyers 9,15,14,5,6,7  1001,1111,1110,0101,0110,0111 )Ii,/Oo,.Nn,5Uu,6Vv,7Ww
+phase_6:gdb x/24xw 0x6032d0 4 3 6 1 2 5
